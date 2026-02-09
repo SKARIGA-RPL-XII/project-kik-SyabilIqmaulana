@@ -1,28 +1,30 @@
 <?php
 
-// app/Models/User.php
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+// 1. Pastikan baris ini ADA
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable {
-    use HasApiTokens, Notifiable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
+class User extends Authenticatable
+{
+    // 2. Tambahkan 'HasApiTokens' di sini (paling kiri)
+    use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
-        'name','email','password','role','kelas'
+        'name',
+        'email',
+        'password',
     ];
 
-    protected $hidden = [
-        'password'
-    ];
-
-    public function materials() {
-        return $this->hasMany(Material::class, 'teacher_id');
-    }
-
-    public function chats() {
-        return $this->hasMany(Chat::class);
-    }
+    // ... sisa kode lainnya ...
 }

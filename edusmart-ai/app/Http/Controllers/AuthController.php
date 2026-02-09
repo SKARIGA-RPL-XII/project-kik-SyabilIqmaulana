@@ -3,82 +3,45 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
 class AuthController extends Controller
 {
-    // REGISTER
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
-            'kelas' => 'nullable|string|max:50',
-            'role' => 'nullable|in:student,teacher,admin'
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'kelas' => $request->kelas,
-            'role' => $request->role ?? 'student',
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('edusmart-token')->plainTextToken;
-
-        return response()->json([
-            'status' => 'success',
-            'user' => $user,
-            'token' => $token
-        ], 201);
-    }
-
-    // LOGIN
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+      // 1. Validasi Input DAN SIMPAN ke variabel $credentials
+$credentials = $request->validate([
+    'email' => 'required|email',
+    'password' => 'required',
+]);
 
-        $user = User::where('email', $request->email)->first();
+// 2. Cek apakah email & password cocok
+if (Auth::attempt($credentials)) {
+    // ... kode selanjutnya ...
+    /** @var \App\Models\User $user */  // <--- TAMBAHKAN BARIS INI
+    $user = Auth::user();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Email atau password salah'
-            ], 401);
+    // Sekarang garis merah di bawah createToken pasti hilang
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Login success',
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'user' => $user
+            ], 200);
         }
 
-        // hapus token lama (opsional)
-        $user->tokens()->delete();
-
-        $token = $user->createToken('edusmart-token')->plainTextToken;
-
+        // Jika gagal
         return response()->json([
-            'status' => 'success',
-            'user' => $user,
-            'token' => $token
-        ]);
+            'message' => 'Email atau password salah'
+        ], 401);
     }
 
-    // LOGOUT
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Logout berhasil'
-        ]);
-    }
-
-    // PROFILE (cek auth)
-    public function me(Request $request)
-    {
-        return response()->json($request->user());
+        return response()->json(['message' => 'Logged out successfully']);
     }
 }

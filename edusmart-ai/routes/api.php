@@ -5,47 +5,39 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\TeacherController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes - Versi Rapi
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-
-// routes/api.php
-Route::middleware('auth:sanctum')->post('/ai/chat', [AiChatController::class, 'chat']);
-
-
-
-// public
+// 1. PUBLIC ROUTES (Bisa diakses tanpa login)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// protected
+// 2. PROTECTED ROUTES (Harus Login / Punya Token)
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // User Info
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
     Route::get('/me', [AuthController::class, 'me']);
-});
+    Route::post('/logout', [AuthController::class, 'logout']);
 
+    // Fitur Aplikasi
+    Route::post('/ai/chat', [AiChatController::class, 'chat']);
 
-Route::middleware(['auth:sanctum'])->group(function () {
+    // Student Resource (Otomatis buat index, store, update, destroy)
+    Route::apiResource('students', StudentController::class);
+    Route::resource('teachers',TeacherController::class);
 
-    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])
-        ->middleware('role:admin');
-
-    Route::get('/guru/dashboard', [DashboardController::class, 'guru'])
-        ->middleware('role:guru');
-
-    Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])
-        ->middleware('role:siswa');
+    // Dashboard Role Based
+    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->middleware('role:admin');
+    Route::get('/guru/dashboard', [DashboardController::class, 'guru'])->middleware('role:guru');
+    Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])->middleware('role:siswa');
 
 });
