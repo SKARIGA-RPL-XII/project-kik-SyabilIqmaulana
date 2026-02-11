@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { LayoutDashboard, Users, LogOut, Menu, X, UserCircle } from "lucide-react";
+import { UserCheck } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 export default function Layout() {
   const [isOpen, setIsOpen] = useState(false); // Untuk mobile
@@ -18,8 +20,9 @@ export default function Layout() {
   const menus = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
     { name: "Data Siswa", path: "/students", icon: <Users size={20} /> },
-    // Nanti tambah Data Guru disini
-  ];
+    { name: "Data Guru", path: "/teachers", icon: <UserCheck size={20} /> }, 
+    { name: "Materi Pelajaran", path: "/materials", icon: <BookOpen size={20} /> },
+];
 
   return (
     <div className="flex h-screen bg-gray-100">

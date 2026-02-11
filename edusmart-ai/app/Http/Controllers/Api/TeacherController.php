@@ -37,6 +37,7 @@ class TeacherController extends Controller
 
         // Simpan ke database
         $teacher = Teacher::create([
+            'nip'      => $request->nip,
             'name'     => $request->name,
             'email'    => $request->email,
         ]);
@@ -84,6 +85,7 @@ class TeacherController extends Controller
 
         if($teacher) {
             $teacher->update([
+                'nip'      => $request->nip,
                 'name'     => $request->name,
                 'email'    => $request->email,
             ]);

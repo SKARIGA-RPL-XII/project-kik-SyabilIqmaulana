@@ -7,6 +7,7 @@ use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\MaterialController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,10 +35,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Student Resource (Otomatis buat index, store, update, destroy)
     Route::apiResource('students', StudentController::class);
     Route::resource('teachers',TeacherController::class);
+    Route::apiResource('materials', MaterialController::class);
 
     // Dashboard Role Based
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->middleware('role:admin');
     Route::get('/guru/dashboard', [DashboardController::class, 'guru'])->middleware('role:guru');
     Route::get('/siswa/dashboard', [DashboardController::class, 'siswa'])->middleware('role:siswa');
+
+    //teacher Resource (Otomatis buat index, store, update, destroy)
+    Route::resource('teachers',TeacherController::class);
+    Route::apiResource('materials', MaterialController::class);
 
 });

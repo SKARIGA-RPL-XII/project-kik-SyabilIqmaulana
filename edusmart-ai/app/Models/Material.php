@@ -1,17 +1,25 @@
 <?php
 
-// app/Models/Material.php
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Material extends Model {
+class Material extends Model
+{
+    use HasFactory;
+
     protected $fillable = [
-        'title','content','subject','file_path','teacher_id'
+        'teacher_id',
+        'title',
+        'description',
+        'file_path',
+        'subject',
     ];
 
-    public function teacher() {
-        return $this->belongsTo(User::class, 'teacher_id');
+    // Relasi: Materi milik satu Guru
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class);
     }
 }
-
