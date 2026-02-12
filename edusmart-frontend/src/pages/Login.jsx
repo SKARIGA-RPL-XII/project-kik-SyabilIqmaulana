@@ -36,6 +36,7 @@ export default function Login() {
       // Simpan token
       localStorage.setItem("token", response.data.access_token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
+      window.location.href = '/dashboard';
 
       alert("Login Berhasil!");
       navigate("/dashboard");

@@ -9,17 +9,28 @@ class Material extends Model
 {
     use HasFactory;
 
+    protected $table = 'materials'; // Nama tabel di database
+
+    // 1. Pastikan nama kolom di sini SAMA PERSIS dengan di database
     protected $fillable = [
-        'teacher_id',
+        'teacher_id',      // Konsisten menggunakan teacher_id (FK ke tabel users)
         'title',
         'description',
         'file_path',
-        'subject',
+        'subject',      // Pastikan kolom ini ada di database kamu
     ];
 
-    // Relasi: Materi milik satu Guru
-    public function teacher()
+    // 2. Relasi ke User (Guru)
+    // Ini dipakai saat: Material::with('user')->get();
+    public function user()
     {
-        return $this->belongsTo(Teacher::class);
+        // Parameter kedua 'user_id' menegaskan bahwa foreign key di tabel materials adalah 'user_id'
+        return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    // (Opsional) Jika ingin memanggilnya dengan nama 'guru', tapi tetap ke tabel users
+    public function guru()
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
     }
 }

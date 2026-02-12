@@ -1,147 +1,109 @@
-import { useEffect, useState } from "react";
-import api from "../services/api"; 
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
+import { Plus, Search, Edit, Trash2, Briefcase } from "lucide-react";
 
-export default function Teachers() {
+const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Fungsi untuk mengambil data dari Laravel
-  const fetchTeachers = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/teachers"); 
-      setTeachers(response.data.data || response.data); 
-    } catch (err) {
-      console.error("Error fetching teacher:", err);
-      setError("Gagal mengambil data guru.");
-      
-      if (err.response && err.response.status === 401) {
-        localStorage.clear();
-        window.location.href = "/";
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- FUNGSI BARU: DELETE TEACHER ---
-  const handleDelete = async (id) => {
-    // 1. Konfirmasi dulu biar nggak salah hapus
-    if (window.confirm("Apakah anda yakin ingin menghapus data guru ini?")) {
-      try {
-        // 2. Panggil API Delete ke Laravel
-        await api.delete(`/teachers/${id}`);
-        
-        // 3. Update tampilan tabel secara langsung (tanpa reload halaman)
-        // Kita filter data: Ambil semua guru KECUALI yang id-nya barusan dihapus
-        setTeachers(teachers.filter(teacher => teacher.id !== id));
-        
-        alert("Data berhasil dihapus!");
-      } catch (error) {
-        console.error("Gagal hapus", error);
-        alert("Gagal menghapus data. Cek koneksi atau izin server.");
-      }
-    }
-  };
-
-  // Jalankan fungsi ini sekali saat halaman dibuka
   useEffect(() => {
-    fetchTeachers();
+    getTeachers();
   }, []);
 
+  const getTeachers = async () => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get("http://localhost:8000/api/teachers", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        setTeachers(response.data.data);
+    } catch (error) {
+        console.error("Error", error);
+    }
+  };
+
+  const deleteTeacher = async (id) => {
+    if(!window.confirm("Hapus guru ini?")) return;
+    try {
+        const token = localStorage.getItem("token");
+        await axios.delete(`http://localhost:8000/api/teachers/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        getTeachers();
+    } catch (error) { console.error(error); }
+  };
+
+  const filteredTeachers = teachers.filter(t => 
+    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    t.nip?.includes(searchTerm)
+  );
+
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Daftar Guru</h1>
-          {/* Kalau sudah pakai Sidebar Layout, tombol kembali ini opsional */}
-          <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 font-medium">
-            &larr; Kembali ke Dashboard
-          </Link>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h2 className="text-2xl font-bold text-gray-800">Data Guru</h2>
+            <p className="text-gray-500 text-sm">Kelola daftar pengajar.</p>
         </div>
-
-        {/* Card Tabel */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden p-6">
-          
-          {/* Tombol Tambah */}
-          <div className="mb-4">
-            <Link to="/teachers/add" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition inline-block">
-              + Tambah Data Guru
+        <div className="flex gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+                <input 
+                    type="text" 
+                    placeholder="Cari Nama atau NIP..." 
+                    className="w-full pl-10 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <Link to="/teachers/add" className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium shadow-md">
+                <Plus size={20} />
+                <span className="hidden md:inline">Tambah Guru</span>
             </Link>
-          </div>
+        </div>
+      </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {error}
-            </div>
-          )}
-
-          {/* Tabel */}
-          {loading ? (
-            <div className="text-center py-10 text-gray-500">Sedang memuat data...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
-                    <th className="py-3 px-6 text-left">No</th>
-                    <th className="py-3 px-6 text-left">NIP</th>
-                    <th className="py-3 px-6 text-left">Nama</th>
-                    <th className="py-3 px-6 text-left">Email</th>
-                    <th className="py-3 px-6 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="text-gray-600 text-sm font-light">
-                  {teachers.length > 0 ? (
-                    teachers.map((teacher, index) => (
-                      <tr key={teacher.id} className="border-b border-gray-200 hover:bg-gray-50">                
-                        <td className="py-3 px-6 text-left font-bold">{index + 1}</td>
-                        <td className="py-3 px-6 text-left">{teacher.nip}</td>
-                        <td className="py-3 px-6 text-left">{teacher.name}</td>
-                        <td className="py-3 px-6 text-left">{teacher.email}</td>
-                        
-                        {/* --- BAGIAN AKSI (EDIT & DELETE) --- */}
-                        <td className="py-3 px-6 text-center">
-                          <div className="flex item-center justify-center space-x-2">
-                            
-                            {/* Tombol Edit (Gunakan Link) */}
-                            <Link 
-                              to={`/teachers/edit/${teacher.id}`}
-                              className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition"
-                            >
-                              Edit
-                            </Link>
-
-                            {/* Tombol Hapus (Gunakan onClick) */}
-                            <button 
-                              onClick={() => handleDelete(teacher.id)}
-                              className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
-                            >
-                              Hapus
-                            </button>
-
-                          </div>
-                        </td>
-                        {/* ---------------------------------- */}
-
-                      </tr>
-                    ))
-                  ) : (
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
                     <tr>
-                      <td colSpan="4" className="text-center py-4">Belum ada data siswa.</td>
+                        <th className="p-4 border-b">Nama Guru</th>
+                        <th className="p-4 border-b">NIP</th>
+                        <th className="p-4 border-b">Email</th>
+                        <th className="p-4 border-b text-right">Aksi</th>
                     </tr>
-                  )}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {filteredTeachers.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50 transition">
+                            <td className="p-4 flex items-center gap-3">
+                                {/* Avatar Guru - Purple */}
+                                <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
+                                    <Briefcase size={18} />
+                                </div>
+                                <span className="font-medium text-gray-800">{item.name}</span>
+                            </td>
+                            <td className="p-4 text-gray-600 font-mono text-sm">{item.nip || '-'}</td>
+                            <td className="p-4 text-gray-600">{item.email}</td>
+                            <td className="p-4 text-right space-x-2">
+                                <Link to={`/teachers/edit/${item.id}`} className="inline-block p-2 text-blue-500 hover:bg-blue-50 rounded-lg">
+                                    <Edit size={18} />
+                                </Link>
+                                <button onClick={() => deleteTeacher(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                                    <Trash2 size={18} />
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
-              </table>
-            </div>
-          )}
+            </table>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Teachers;
