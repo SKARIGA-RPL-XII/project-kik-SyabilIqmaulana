@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Student; // Pastikan Model di-import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 
 class StudentController extends Controller
 {
@@ -67,34 +68,47 @@ class StudentController extends Controller
     }
 
     // 4. PUT Update Siswa
-    public function update(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'name'     => 'required',
-            'email'    => 'required|email|unique:students,email,'.$id, // Email boleh sama kalau punya diri sendiri
-        ]);
+   public function update(Request $request, $id)
+{
+    // 1. Tambahkan validasi 'password' (nullable = boleh kosong)
+    $validator = Validator::make($request->all(), [
+        'name'     => 'required',
+        'email'    => 'required|email|unique:students,email,'.$id,
+        'password' => 'nullable|min:6', // Jika diisi, minimal 6 karakter
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $student = Student::find($id);
-
-        if($student) {
-            $student->update([
-                'name'     => $request->name,
-                'email'    => $request->email,
-            ]);
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Data Siswa Berhasil Diupdate!',
-                'data'    => $student
-            ], 200);
-        }
-
-        return response()->json(['message' => 'Data tidak ditemukan'], 404);
+    if ($validator->fails()) {
+        return response()->json($validator->errors(), 422);
     }
+
+    $student = Student::find($id);
+
+    if($student) {
+        // 2. Siapkan array data dasar yang pasti diupdate
+        $dataToUpdate = [
+            'name'  => $request->name,
+            'email' => $request->email,
+        ];
+
+        // 3. Cek apakah request dari React membawa password yang tidak kosong
+        if ($request->filled('password')) {
+            // Jika ada, tambahkan ke array dan enkripsi password-nya
+            $dataToUpdate['password'] = Hash::make($request->password);
+            // atau bisa juga pakai bcrypt($request->password)
+        }
+
+        // 4. Update ke database menggunakan array yang sudah disiapkan
+        $student->update($dataToUpdate);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Data Siswa Berhasil Diupdate!',
+            'data'    => $student
+        ], 200);
+    }
+
+    return response()->json(['message' => 'Data tidak ditemukan'], 404);
+}
 
     // 5. DELETE Hapus Siswa
     public function destroy($id)

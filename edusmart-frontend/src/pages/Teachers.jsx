@@ -17,12 +17,29 @@ const Teachers = () => {
         const response = await axios.get("http://localhost:8000/api/teachers", {
             headers: { Authorization: `Bearer ${token}` }
         });
-        setTeachers(response.data.data);
+
+        // 1. Cek isi sebenarnya di console (penting untuk tahu bentuk datanya)
+        console.log("Response dari API:", response.data);
+
+        // 2. Jaring Pengaman (PENTING!)
+        // Jika response.data.data itu ada dan berupa array, gunakan itu.
+        // Jika tidak, cek apakah response.data langsung berupa array.
+        // Kalau semua gagal, set array kosong [] agar tidak error .filter
+        
+        if (response.data && Array.isArray(response.data.data)) {
+             setTeachers(response.data.data);
+        } else if (Array.isArray(response.data)) {
+             setTeachers(response.data);
+        } else {
+             console.error("Format data API tidak dikenali! Harap periksa backend.");
+             setTeachers([]); // Mencegah error crash
+        }
+
     } catch (error) {
         console.error("Error", error);
+        setTeachers([]); // Jika error jaringan, set array kosong
     }
   };
-
   const deleteTeacher = async (id) => {
     if(!window.confirm("Hapus guru ini?")) return;
     try {
@@ -34,9 +51,9 @@ const Teachers = () => {
     } catch (error) { console.error(error); }
   };
 
-  const filteredTeachers = teachers.filter(t => 
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.nip?.includes(searchTerm)
+  const filteredTeachers = (teachers || []).filter(t => 
+    t?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    t?.nip?.includes(searchTerm)
   );
 
   return (

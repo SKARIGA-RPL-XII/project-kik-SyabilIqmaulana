@@ -77,6 +77,13 @@ const Materials = () => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
+                   {filteredMaterials.length === 0 && (
+    <tr>
+        <td colSpan="4" className="p-10 text-center text-gray-500">
+            Belum ada materi ditemukan.
+        </td>
+    </tr>
+)}
                     {filteredMaterials.map((item) => (
                         <tr key={item.id} className="hover:bg-gray-50 transition">
                             <td className="p-4">

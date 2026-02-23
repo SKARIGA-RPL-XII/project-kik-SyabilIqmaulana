@@ -1,21 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { Users, BookOpen, GraduationCap, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, BookOpen, GraduationCap, TrendingUp, LogOut } from 'lucide-react';
 
-const Dashboard = () => {
-    // State untuk statistik (Nanti bisa di-fetch dari API)
+
+const DashboardAdmin = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         students: 0,
         teachers: 0,
         materials: 0
     });
 
-    // Simulasi Fetch Data (Atau ganti endpoint API asli jika sudah ada)
     useEffect(() => {
-        // Contoh: fetchStats();
-        // Untuk sementara kita hardcode dulu biar tampilan bagus untuk screenshot
-        setStats({ students: 120, teachers: 15, materials: 45 });
-    }, []);
+        // Cek apakah user ada dan rolenya admin
+        const userData = JSON.parse(localStorage.getItem("user"));
+        if (!userData || userData.role !== 'admin') {
+            navigate("/", { replace: true });
+        } else {
+            // Simulasi fetch data
+            setStats({ students: 120, teachers: 15, materials: 45 });
+        }
+    }, [navigate]);
+
+    const handleLogout = () => {
+        localStorage.clear();
+        navigate("/", { replace: true });
+    };
 
     const StatCard = ({ title, value, icon, color }) => (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition">
@@ -30,14 +40,24 @@ const Dashboard = () => {
     );
 
     return (
-        <div>
+        <div className="p-6">
+            {/* Header dengan tombol Logout */}
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-800 text-sm">Admin Panel</h2>
+                <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition font-medium"
+                >
+                    <LogOut size={18} /> Keluar
+                </button>
+            </div>
+
             {/* Banner Selamat Datang */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white mb-8 shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
                     <h1 className="text-3xl font-bold mb-2">Selamat Datang, Admin! 👋</h1>
                     <p className="opacity-90">Ini adalah pusat kontrol aplikasi EduSmart AI. Pantau perkembangan siswa di sini.</p>
                 </div>
-                {/* Hiasan background */}
                 <div className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10">
                     <Users size={200} />
                 </div>
@@ -65,7 +85,7 @@ const Dashboard = () => {
                 />
             </div>
 
-            {/* Contoh Tabel Aktivitas Terbaru (Kosong dulu gapapa) */}
+            {/* Tabel Aktivitas */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <TrendingUp size={20} className="text-blue-600"/>
@@ -94,7 +114,6 @@ const Dashboard = () => {
                                 <td className="p-3">1 jam lalu</td>
                                 <td className="p-3"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">Upload</span></td>
                             </tr>
-                            {/* Tambahkan baris dummy lain jika mau */}
                         </tbody>
                     </table>
                 </div>
@@ -103,4 +122,4 @@ const Dashboard = () => {
     );
 };
 
-export default Dashboard;
+export default DashboardAdmin;

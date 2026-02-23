@@ -3,8 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\AiChatController; // Controller lama (jika masih dipakai)
-use App\Http\Controllers\ChatController;   // Controller BARU (untuk fitur chat kita)
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherController;
@@ -38,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- AI Chat (Fitur Baru) ---
     // Pastikan ini mengarah ke ChatController yang baru kita buat
+    // Ubah 'chat' menjadi 'store'
     Route::post('/chat', [ChatController::class, 'chat']);
 
 
@@ -56,5 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('materials', MaterialController::class);
     // Tambahan jika butuh update via POST (untuk upload file biasanya pakai ini karena method PUT bermasalah dengan file)
     Route::post('/materials/{id}', [MaterialController::class, 'update']);
+
+    // Route untuk Dashboard Guru
+    Route::get('/teacher/dashboard', [TeacherController::class, 'dashboard']);
 
 });

@@ -3,13 +3,38 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Teacher; // Pastikan Model di-import
+use App\Models\Teacher;
+use App\Models\User;
+use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class TeacherController extends Controller
 {
-    // 1. GET /api/teachers (Ambil semua data)
+    // ========================================================
+    // BAGIAN 1: KHUSUS UNTUK HALAMAN DASHBOARD
+    // ========================================================
+    public function dashboard()
+    {
+        $totalStudents = User::where('role', 'student')->count();
+        $totalMaterials = Material::count();
+        $recentMaterials = Material::latest()->take(5)->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'total_students' => $totalStudents,
+                'total_materials' => $totalMaterials,
+                'recent_materials' => $recentMaterials
+            ]
+        ]);
+    }
+
+    // ========================================================
+    // BAGIAN 2: KHUSUS UNTUK KELOLA DATA GURU (CRUD)
+    // ========================================================
+
+    // 1. GET /api/teachers (Ambil semua data guru)
     public function index()
     {
         $teachers = Teacher::latest()->get();
@@ -17,16 +42,16 @@ class TeacherController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'List Data Guru',
-            'data' => $teachers
+            'data' => $teachers // Data array ada di dalam properti 'data'
         ], 200);
     }
 
-    // 2. POST /api/teachers (Tambah data baru)
+    // 2. POST /api/teachers (Tambah guru baru)
     public function store(Request $request)
     {
         // Validasi input
-        $validator =Validator::make($request->all(), [
-            'nip' => 'required|unique:teachers',
+        $validator = Validator::make($request->all(), [
+            'nip'      => 'required|unique:teachers',
             'name'     => 'required',
             'email'    => 'required|email|unique:teachers,email',
         ]);
@@ -60,21 +85,22 @@ class TeacherController extends Controller
                 'message' => 'Detail Data Guru',
                 'data' => $teacher
             ], 200);
-        } else {
-            return response()->json([
-                'status' => false,
-                'message' => 'Data Guru Tidak Ditemukan',
-            ], 404);
         }
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Data Guru Tidak Ditemukan',
+        ], 404);
     }
 
     // 4. PUT Update Guru
     public function update(Request $request, $id)
     {
+        // Validasi yang sudah diperbaiki!
         $validator = Validator::make($request->all(), [
-            'nip' => 'required|unique:teachers',
+            'nip'      => 'required|unique:teachers,nip,'.$id,
             'name'     => 'required',
-            'email'    => 'required|email|unique:teachers,email,'.$id, // Email boleh sama kalau punya diri sendiri
+            'email'    => 'required|email|unique:teachers,email,'.$id,
         ]);
 
         if ($validator->fails()) {
@@ -107,7 +133,6 @@ class TeacherController extends Controller
 
         if($teacher) {
             $teacher->delete();
-
             return response()->json([
                 'status' => true,
                 'message' => 'Data Guru Berhasil Dihapus!',

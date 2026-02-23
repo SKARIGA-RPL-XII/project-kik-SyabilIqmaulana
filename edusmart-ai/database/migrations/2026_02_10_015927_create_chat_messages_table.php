@@ -6,25 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-   public function up()
-{
-    Schema::create('chat_messages', function (Blueprint $table) {
-        $table->id();
-        $table->unsignedBigInteger('chat_session_id');
-        $table->enum('role', ['user', 'assistant']); // Siapa yang ngomong?
-        $table->text('message'); // Isi pesan
-        $table->timestamps();
+    public function up(): void
+    {
+        Schema::create('chat_messages', function (Blueprint $table) {
+            $table->id();
+            // Menghubungkan pesan ini ke sesi chat yang mana
+            $table->unsignedBigInteger('chat_session_id');
+            // Siapa yang mengirim? 'user' (murid) atau 'assistant' (AI)
+            $table->enum('role', ['user', 'assistant']);
+            // Isi pesannya
+            $table->text('message');
+            $table->timestamps();
 
-        $table->foreign('chat_session_id')->references('id')->on('chat_sessions')->onDelete('cascade');
-    });
-}
+            // Foreign Key: Jika sesi dihapus, pesan di dalamnya ikut terhapus
+            $table->foreign('chat_session_id')->references('id')->on('chat_sessions')->onDelete('cascade');
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('chat_messages');

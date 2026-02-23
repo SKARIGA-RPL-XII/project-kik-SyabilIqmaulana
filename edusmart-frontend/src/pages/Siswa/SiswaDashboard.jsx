@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { LogOut, BookOpen, MessageSquare, Send, X, Bot, User } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import api from "../../services/api"; // Gunakan instance API yang sudah kita buat
+import { LogOut, BookOpen, Send, X, Bot, MessageCircle, FileText } from "lucide-react";
 import Logo from "../../components/Logo"; 
 
 const SiswaDashboard = () => {
@@ -11,27 +11,32 @@ const SiswaDashboard = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState([
-    { sender: "ai", text: "Halo! Saya asisten AI belajarmu. Pilih materi lalu tanya apa saja!" }
-  ]);
+  const [chatHistory, setChatHistory] = useState([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
 
+  const chatEndRef = useRef(null);
+
   useEffect(() => {
-    // Ambil data user dari local storage
     const storedUser = JSON.parse(localStorage.getItem("user"));
-    setUser(storedUser || {});
-    fetchMaterials();
+    if (!storedUser) {
+        window.location.href = "/";
+    } else {
+        setUser(storedUser);
+        fetchMaterials();
+    }
   }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory, isAiTyping]);
 
   const fetchMaterials = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:8000/api/materials", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setMaterials(response.data.data);
+      // Instance 'api' sudah otomatis bawa Token di Header
+      const response = await api.get("/materials");
+      setMaterials(response.data.data || response.data);
     } catch (error) {
-      console.error(error);
+      console.error("Gagal ambil materi:", error);
     }
   };
 
@@ -40,116 +45,130 @@ const SiswaDashboard = () => {
     window.location.href = "/";
   };
 
-  // Buka Chat Modal
   const openChat = (material) => {
     setSelectedMaterial(material);
     setIsChatOpen(true);
-    // Reset chat history saat buka materi baru (opsional)
     setChatHistory([
-        { sender: "ai", text: `Halo ${user.name}! Ada yang belum paham tentang materi "${material.title}"?` }
+        { sender: "ai", text: `Halo ${user.name}! Saya asisten belajarmu. Ada yang bingung dari materi "${material.title}" ini?` }
     ]);
   };
 
-  // Kirim Pesan ke AI (Simulasi)
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatMessage.trim()) return;
 
-    // 1. Tambah pesan user ke chat
-    const newHistory = [...chatHistory, { sender: "user", text: chatMessage }];
-    setChatHistory(newHistory);
-    setChatMessage("");
+    const currentMessage = chatMessage;
+    const currentChat = [...chatHistory, { sender: "user", text: currentMessage }];
+    
+    setChatHistory(currentChat);
+    setChatMessage(""); 
     setIsAiTyping(true);
 
-    // 2. Simulasi AI Menjawab (Nanti diganti dengan API Call beneran)
-    setTimeout(() => {
-        const aiResponse = { 
+    try {
+        const response = await api.post("/chat", {
+            material_id: selectedMaterial.id,
+            message: currentMessage
+        });
+
+        if (response.data.success) {
+            setChatHistory([...currentChat, { 
+                sender: "ai", 
+                text: response.data.data.message 
+            }]);
+        }
+    } catch (error) {
+        console.error("Error Chat:", error);
+        setChatHistory([...currentChat, { 
             sender: "ai", 
-            text: `Ini adalah jawaban simulasi AI untuk pertanyaan: "${chatMessage}" mengenai materi ${selectedMaterial.title}. (Sambungkan ke API OpenAI/Gemini di sini nanti)` 
-        };
-        setChatHistory([...newHistory, aiResponse]);
+            text: "Waduh, koneksi ke otak AI saya terputus. Coba tanya lagi ya!" 
+        }]);
+    } finally {
         setIsAiTyping(false);
-    }, 1500);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans">
       
-      {/* === NAVBAR === */}
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-30">
+      {/* NAVBAR */}
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
             <Logo className="h-8" />
             <div className="flex items-center gap-4">
-                <span className="text-gray-600 hidden md:block">Halo, <span className="font-bold text-gray-800">{user.name}</span> 👋</span>
+                <div className="hidden md:flex flex-col items-end">
+                    <span className="text-sm font-bold text-gray-800">{user.name}</span>
+                    <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full uppercase font-bold">Siswa</span>
+                </div>
                 <button 
                     onClick={handleLogout}
-                    className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm font-medium"
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition"
+                    title="Keluar"
                 >
-                    <LogOut size={18} />
-                    <span className="hidden md:inline">Keluar</span>
+                    <LogOut size={20} />
                 </button>
             </div>
         </div>
       </nav>
 
-      {/* === MAIN CONTENT === */}
+      {/* MAIN CONTENT */}
       <main className="max-w-6xl mx-auto px-4 py-8">
         
-        {/* Banner Selamat Datang */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-lg mb-8 flex items-center justify-between relative overflow-hidden">
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-500 rounded-3xl p-8 text-white shadow-xl mb-10 relative overflow-hidden">
             <div className="relative z-10">
-                <h1 className="text-3xl font-bold mb-2">Semangat Belajar, {user.name}! 🚀</h1>
-                <p className="opacity-90 text-blue-100 max-w-lg">
-                    Akses materi pelajaranmu di bawah ini dan gunakan fitur <b>Tanya AI</b> jika kamu mengalami kesulitan.
+                <h1 className="text-3xl md:text-4xl font-extrabold mb-3">Selamat Belajar, {user.name}! ✨</h1>
+                <p className="opacity-90 text-blue-50 max-w-xl leading-relaxed">
+                    Semua materi sudah siap diakses. Jika ada bagian yang sulit dipahami, jangan ragu klik tombol <b>Tanya AI</b> ya!
                 </p>
             </div>
-            {/* Dekorasi Icon */}
-            <Bot size={150} className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12" />
+            <Bot size={180} className="absolute -right-10 -bottom-10 opacity-15 transform rotate-12" />
+        </div>
+
+        {/* Section Title */}
+        <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+                <BookOpen className="text-blue-600" size={24}/> Materi Pelajaran
+            </h2>
+            <span className="text-sm text-gray-500 font-medium">{materials.length} Materi ditemukan</span>
         </div>
 
         {/* Grid Materi */}
-        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <BookOpen className="text-blue-600"/> Daftar Materi Tersedia
-        </h2>
-
         {materials.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {materials.map((item) => (
-                    <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 flex flex-col group">
-                        {/* Card Header */}
+                    <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full overflow-hidden group">
                         <div className="p-6 flex-1">
                             <div className="flex justify-between items-start mb-4">
-                                <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase tracking-wide">
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <FileText size={20} />
+                                </div>
+                                <span className="px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full uppercase">
                                     {item.subject}
                                 </span>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition">
+                            <h3 className="text-lg font-bold text-gray-800 mb-2 leading-tight">
                                 {item.title}
                             </h3>
-                            <p className="text-gray-500 text-sm line-clamp-2">
-                                Pelajari materi tentang {item.title} untuk mata pelajaran {item.subject}.
+                            <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                                {item.description || `Materi pembelajaran untuk mata pelajaran ${item.subject}.`}
                             </p>
                         </div>
 
-                        {/* Card Footer / Actions */}
-                        <div className="p-4 border-t bg-gray-50 rounded-b-xl flex gap-3">
-                            {/* Tombol Download/Baca */}
+                        <div className="p-4 bg-gray-50/50 border-t flex gap-2">
                             <a 
                                 href={`http://localhost:8000/storage/${item.file_path}`} 
                                 target="_blank" 
                                 rel="noreferrer"
-                                className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
+                                className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-2.5 rounded-xl text-xs font-bold hover:bg-gray-100 transition shadow-sm"
                             >
-                                <BookOpen size={16} />
                                 Baca PDF
                             </a>
                             
-                            {/* Tombol Tanya AI */}
                             <button 
                                 onClick={() => openChat(item)}
-                                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition shadow-sm"
+                                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-md shadow-blue-100"
                             >
-                                <Bot size={16} />
+                                <MessageCircle size={14} />
                                 Tanya AI
                             </button>
                         </div>
@@ -157,69 +176,76 @@ const SiswaDashboard = () => {
                 ))}
             </div>
         ) : (
-            <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-                <p className="text-gray-500">Belum ada materi yang tersedia saat ini.</p>
+            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
+                <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BookOpen className="text-gray-300" />
+                </div>
+                <p className="text-gray-500 font-medium">Belum ada materi yang diupload oleh guru.</p>
             </div>
         )}
 
       </main>
 
-      {/* === MODAL CHAT AI (Floating & Modern) === */}
+      {/* MODAL CHAT AI */}
       {isChatOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[600px] animate-fade-in-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[80vh] md:h-[550px] animate-in zoom-in duration-200">
                 
-                {/* Chat Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex justify-between items-center text-white">
+                {/* Header Chat */}
+                <div className="bg-blue-600 p-5 flex justify-between items-center text-white">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/20 p-2 rounded-full">
+                        <div className="bg-white/20 p-2 rounded-xl">
                             <Bot size={24} />
                         </div>
                         <div>
-                            <h3 className="font-bold">Asisten AI Pintar</h3>
-                            <p className="text-xs text-blue-100">Diskusi: {selectedMaterial?.title}</p>
+                            <h3 className="font-bold text-sm">Tanya Materi AI</h3>
+                            <p className="text-[10px] text-blue-100 opacity-80">Topik: {selectedMaterial?.title}</p>
                         </div>
                     </div>
-                    <button onClick={() => setIsChatOpen(false)} className="hover:bg-white/20 p-2 rounded-full transition">
+                    <button onClick={() => setIsChatOpen(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition">
                         <X size={20} />
                     </button>
                 </div>
 
-                {/* Chat Body (History) */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                {/* Body Chat */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50">
                     {chatHistory.map((msg, index) => (
                         <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-2xl p-3 text-sm shadow-sm ${
+                            <div className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${
                                 msg.sender === 'user' 
                                     ? 'bg-blue-600 text-white rounded-tr-none' 
-                                    : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
+                                    : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
                             }`}>
                                 {msg.text}
                             </div>
                         </div>
                     ))}
+                    
                     {isAiTyping && (
                         <div className="flex justify-start">
-                            <div className="bg-gray-200 text-gray-500 text-xs px-3 py-2 rounded-full animate-pulse">
-                                AI sedang mengetik...
+                            <div className="bg-white border border-gray-100 text-gray-400 px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-1.5 shadow-sm">
+                                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
                             </div>
                         </div>
                     )}
+                    <div ref={chatEndRef} />
                 </div>
 
-                {/* Chat Input */}
-                <form onSubmit={handleSendMessage} className="p-4 bg-white border-t flex gap-2">
+                {/* Input Chat */}
+                <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-100 flex gap-2">
                     <input 
                         type="text"
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
-                        placeholder="Tanyakan sesuatu tentang materi ini..."
-                        className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        placeholder="Ketik pertanyaanmu di sini..."
+                        className="flex-1 bg-gray-100 border-none text-sm rounded-2xl px-5 py-3.5 focus:ring-2 focus:ring-blue-500 transition outline-none"
                     />
                     <button 
                         type="submit"
                         disabled={!chatMessage.trim() || isAiTyping}
-                        className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 transition"
+                        className="bg-blue-600 text-white p-3.5 rounded-2xl hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 transition shadow-lg shadow-blue-100"
                     >
                         <Send size={18} />
                     </button>

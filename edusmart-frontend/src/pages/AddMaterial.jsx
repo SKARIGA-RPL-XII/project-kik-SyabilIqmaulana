@@ -1,86 +1,93 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../services/api"; // Pastikan path ini benar sesuai struktur foldermu
+import api from "../services/api"; 
 
 export default function AddMaterial() {
-  // --- STATE FORM ---
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState(""); // State ada, sekarang inputnya kita adakan
+  const [description, setDescription] = useState(""); 
   const [teacherId, setTeacherId] = useState("");
   const [file, setFile] = useState(null);
 
-  // --- STATE PENDUKUNG ---
   const [teachers, setTeachers] = useState([]); 
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
 
-  // --- 1. AMBIL DATA GURU (Saat Halaman Dibuka) ---
-  useEffect(() => {
-    const fetchTeachers = async () => {
-      try {
-        const res = await api.get("/teachers");
-        // Cek apakah data dibungkus wrapper 'data' (Laravel Resource) atau array langsung
-        setTeachers(res.data.data || res.data);
-      } catch (err) {
-        console.error("Gagal load guru:", err);
-        alert("Gagal mengambil daftar guru.");
-      }
-    };
-    fetchTeachers();
-  }, []);
+  // Ambil data user dari localStorage untuk cek Role & ID
+  const user = JSON.parse(localStorage.getItem('user'));
+  const isTeacher = user?.role === 'teacher';
 
-  // --- 2. HANDLE SUBMIT (Upload) ---
+  useEffect(() => {
+    // 1. Jika dia GURU, langsung set teacherId dari ID user yang login
+    if (isTeacher) {
+      setTeacherId(user.id);
+    } 
+    // 2. Jika dia ADMIN, baru ambil daftar semua guru untuk dropdown
+    else {
+      const fetchTeachers = async () => {
+        try {
+          const res = await api.get("/teachers");
+          setTeachers(res.data.data || res.data);
+        } catch (err) {
+          console.error("Gagal load guru:", err);
+        }
+      };
+      fetchTeachers();
+    }
+  }, [isTeacher, user.id]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
+    if (!teacherId) {
+      alert("ID Guru tidak terdeteksi!");
+      return;
+    }
+    if (!file) {
+      alert("Harap pilih file materi!");
+      return;
+    }
+
+    setLoading(true);
     const formData = new FormData();
     formData.append("title", title);
     formData.append("subject", subject);
     formData.append("description", description);
-    formData.append("teacher_id", teacherId); // Sesuai database (snake_case)
-    
-    // PENTING: Key harus "file_path" sesuai Controller Laravel ($request->file('file_path'))
-    if (file) {
-      formData.append("file_path", file); 
-    }
+    formData.append("teacher_id", teacherId); 
+    formData.append("file", file); 
 
     try {
       await api.post("/materials", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("Materi berhasil diupload!");
-      navigate("/materials"); // Kembali ke list materi
+      navigate("/materials");
     } catch (err) {
       console.error("Error Upload:", err);
-      
-      // Tampilkan pesan error detail dari Laravel (Validation Error)
-      if (err.response && err.response.data && err.response.data.errors) {
-        const messages = Object.values(err.response.data.errors).flat().join("\n");
-        alert("Gagal Validasi:\n" + messages);
-      } else {
-        alert("Gagal upload. Terjadi kesalahan server.");
-      }
+      const errorData = err.response?.data;
+      alert("Gagal: " + (errorData?.message || "Terjadi kesalahan server"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-xl mx-auto bg-white rounded-lg shadow-md p-8">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Upload Materi Baru</h2>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Upload Materi Baru</h2>
+            <p className="text-gray-500 text-sm">Lengkapi detail materi di bawah ini.</p>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Input Judul */}
           <div>
-            <label className="block text-gray-700 font-bold mb-2">Judul Materi</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Judul Materi</label>
             <input 
               type="text" 
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+              className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" 
+              placeholder="Masukkan judul materi..."
               value={title} 
               onChange={(e) => setTitle(e.target.value)} 
               required 
@@ -89,76 +96,77 @@ export default function AddMaterial() {
 
           {/* Input Mapel */}
           <div>
-            <label className="block text-gray-700 font-bold mb-2">Mata Pelajaran</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Mata Pelajaran</label>
             <input 
               type="text" 
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
-              placeholder="Contoh: Matematika Wajib"
+              className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" 
+              placeholder="Contoh: Fisika, Ekonomi..."
               value={subject} 
               onChange={(e) => setSubject(e.target.value)} 
               required 
             />
           </div>
 
-          {/* Dropdown Guru */}
-          <div>
-            <label className="block text-gray-700 font-bold mb-2">Guru Pengampu</label>
-            <select
-              name="teacher_id"
-              value={teacherId}
-              onChange={(e) => setTeacherId(e.target.value)}          
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-              required
-            >
-              <option value="">-- Pilih Guru --</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name} {teacher.nip ? `(NIP: ${teacher.nip})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Dropdown Guru (Hanya muncul jika ADMIN) */}
+          {!isTeacher ? (
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Guru Pengampu</label>
+                <select
+                value={teacherId}
+                onChange={(e) => setTeacherId(e.target.value)}           
+                className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                required
+                >
+                <option value="">-- Pilih Guru --</option>
+                {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+                </select>
+            </div>
+          ) : (
+            /* Jika Guru, kita tampilkan Info saja agar mereka tahu materi diupload atas nama mereka */
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                <p className="text-xs text-blue-600 font-medium">Mengupload sebagai:</p>
+                <p className="text-sm font-bold text-blue-800">{user.name}</p>
+            </div>
+          )}
 
-          {/* Input Deskripsi (BARU DITAMBAHKAN) */}
+          {/* Input Deskripsi */}
           <div>
-            <label className="block text-gray-700 font-bold mb-2">Deskripsi (Opsional)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Deskripsi (Opsional)</label>
             <textarea 
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+              className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" 
               rows="3"
-              placeholder="Tambahkan keterangan singkat tentang materi..."
+              placeholder="Berikan deskripsi singkat mengenai materi ini..."
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
             ></textarea>
           </div>
 
           {/* File Upload */}
-          <div className="border-t pt-4">
-            <label className="block text-gray-700 font-bold mb-2">File Materi (PDF/DOCX)</label>
+          <div className="p-4 border-2 border-dashed border-gray-200 rounded-2xl hover:border-blue-400 transition bg-gray-50">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 text-center">Pilih File Materi (PDF/DOCX)</label>
             <input 
               type="file" 
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" 
               onChange={(e) => setFile(e.target.files[0])} 
+              accept=".pdf,.doc,.docx"
+              required
             />
-            <p className="text-xs text-gray-500 mt-1">Maksimal ukuran file: 20MB.</p>
           </div>
 
-          {/* Tombol Aksi */}
-          <div className="flex justify-end gap-3 mt-6">
-            <Link 
-              to="/materials" 
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
-            >
-              Batal
+          <div className="flex items-center justify-between pt-4">
+            <Link to="/materials" className="text-sm font-medium text-gray-500 hover:text-gray-700">
+                Batal
             </Link>
             <button 
               type="submit" 
               disabled={loading} 
-              className={`px-4 py-2 text-white rounded transition ${loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className={`px-8 py-3 text-white rounded-xl font-bold shadow-lg shadow-blue-100 transition ${loading ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'}`}
             >
-              {loading ? "Sedang Upload..." : "Upload Sekarang"}
+              {loading ? "Sedang Mengirim..." : "Upload Materi"}
             </button>
           </div>
-
         </form>
       </div>
     </div>

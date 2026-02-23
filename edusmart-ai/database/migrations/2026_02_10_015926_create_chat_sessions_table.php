@@ -6,24 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up()
-{
-    Schema::create('chat_sessions', function (Blueprint $table) {
-        $table->id();
-        $table->unsignedBigInteger('student_id'); // Pemilik chat
-        $table->string('title'); // Judul topik (misal: "Belajar Fisika")
-        $table->timestamps();
+    public function up(): void
+    {
+        // Hapus tabel lama jika ada biar bersih
+        Schema::dropIfExists('chat_sessions');
 
-        $table->foreign('student_id')->references('id')->on('students')->onDelete('cascade');
-    });
-}
+        Schema::create('chat_sessions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id'); // <--- INI WAJIB ADA
+            $table->unsignedBigInteger('material_id')->nullable();
+            $table->timestamps();
 
-    /**
-     * Reverse the migrations.
-     */
+            // Relasi agar aman
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+    }
+
     public function down(): void
     {
         Schema::dropIfExists('chat_sessions');

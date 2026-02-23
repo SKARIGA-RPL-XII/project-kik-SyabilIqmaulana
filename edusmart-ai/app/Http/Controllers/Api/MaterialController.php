@@ -22,41 +22,40 @@ class MaterialController extends Controller
 }
 
     // 2. Upload Materi Baru
-    public function store(Request $request)
+   public function store(Request $request)
     {
-        // Validasi input
-        $validator = Validator::make($request->all(), [
-            'teacher_id' => 'required|exists:teachers,id', // Harus ada gurunya
-            'title'      => 'required',
-            'subject'    => 'required',
-            'file'       => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,txt|max:20480', // Max 20MB
+        // 1. Validasi dulu biar aman
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'subject' => 'required|string|max:255',
+            'teacher_id' => 'required', // Pastikan ID Guru dikirim
+            'description' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf,doc,docx|max:10240', // Maks 10MB
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+        try {
+            // 2. Proses Upload File
+            if ($request->hasFile('file')) {
+                // Simpan file ke folder 'storage/app/public/materials'
+                $filePath = $request->file('file')->store('materials', 'public');
+            } else {
+                return response()->json(['message' => 'File tidak ditemukan'], 400);
+            }
+
+            // 3. Simpan ke Database
+            $material = \App\Models\Material::create([
+                'title' => $request->title,
+                'subject' => $request->subject,
+                'description' => $request->description,
+                'teacher_id' => $request->teacher_id, // Pastikan kolom ini ada di database
+                'file_path' => $filePath,            // Pastikan kolom ini ada di database
+            ]);
+
+            return response()->json(['message' => 'Berhasil upload!', 'data' => $material], 201);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
         }
-
-        // Proses Upload File
-        $filePath = null;
-        if ($request->hasFile('file')) {
-            // Simpan ke folder 'public/materials'
-            $filePath = $request->file('file')->store('materials', 'public');
-        }
-
-        // Simpan ke Database
-        $material = Material::create([
-            'teacher_id' => $request->teacher_id,
-            'title'      => $request->title,
-            'description'=> $request->description,
-            'subject'    => $request->subject,
-            'file_path'  => $filePath, // Simpan path filenya
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Materi berhasil diupload!',
-            'data'    => $material
-        ], 201);
     }
 
     // 3. Lihat Detail Materi

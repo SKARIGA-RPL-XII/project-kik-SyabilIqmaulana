@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { Plus, Search, Edit, Trash2, User } from "lucide-react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -99,17 +99,25 @@ const Students = () => {
                                         Aktif
                                     </span>
                                 </td>
-                                <td className="p-4 text-right space-x-2">
-                                    <Link to={`/students/edit/${item.id}`} className="inline-block p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition">
-                                        <Edit size={18} />
-                                    </Link>
-                                    <button 
-                                        onClick={() => deleteStudent(item.id)}
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </td>
+                                <td className="p-4">
+    {/* Gunakan flex dan justify-end agar rapi di sebelah kanan */}
+    <div className="flex items-center justify-end gap-2">
+        <Link 
+            to={`/students/edit/${item.id}`} 
+            className="flex items-center justify-center p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
+            title="Edit Siswa"
+        >
+            <Edit size={18} strokeWidth={2.5} />
+        </Link>
+        <button 
+            onClick={() => deleteStudent(item.id)}
+            className="flex items-center justify-center p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+            title="Hapus Siswa"
+        >
+            <Trash2 size={18} strokeWidth={2.5} />
+        </button>
+    </div>
+</td>
                             </tr>
                         ))
                     ) : (

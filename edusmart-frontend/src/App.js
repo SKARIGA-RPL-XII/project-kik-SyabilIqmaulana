@@ -2,14 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./components/PrivateRoute";
 import Layout from "./components/Layout"; 
 
-// PAGES
-import AuthPage from "./components/AuthPage"; // <--- GANTI IMPORT INI (Sesuaikan path file AuthPage kamu)
-// import Login from "./pages/Login"; // <--- HAPUS INI
-
-import Dashboard from "./pages/Dashboard"; 
+// --- PAGES IMPORT ---
+import Login from "./pages/Login"; 
+import Register from "./pages/Register";
+import AdminDashboard from "./pages/Dashboard"; 
+import TeacherDashboard from "./pages/Guru/TeacherDashboard";
 import SiswaDashboard from "./pages/Siswa/SiswaDashboard"; 
-
-// ADMIN PAGES (Import lainnya tetap sama...)
 import Students from "./pages/Students";
 import AddStudent from "./pages/AddStudent";
 import EditStudent from "./pages/EditStudent";
@@ -27,42 +25,53 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        
-        {/* RUTE UTAMA DIGANTI KE AUTHPAGE */}
-        <Route path="/" element={<AuthPage />} />
+        {/* 1. PUBLIC ROUTES */}
+        <Route path="/" element={
+            !user ? <Login /> : 
+            role === 'admin' ? <Navigate to="/admin/dashboard" replace /> :
+            role === 'teacher' ? <Navigate to="/teacher/dashboard" replace /> :
+            <Navigate to="/student/dashboard" replace />
+        } />
+        <Route path="/register" element={<Register />} />
 
-        {/* PROTECTED ROUTES */}
+        {/* 2. PROTECTED ROUTES (Harus Login) */}
         <Route element={<PrivateRoute />}>
             
-            {/* === JALUR SISWA === */}
-            {role === 'student' ? (
-                <Route path="/dashboard" element={<SiswaDashboard />} />
-            ) : (
-                
-                // === JALUR ADMIN & GURU ===
+            {/* JALUR SISWA (Tanpa Sidebar Layout jika memang desainnya beda) */}
+            {role === 'student' && (
+                <Route path="/student/dashboard" element={<SiswaDashboard />} />
+            )}
+
+            {/* JALUR GURU & ADMIN (Pakai Layout Sidebar) */}
+            {(role === 'teacher' || role === 'admin') && (
                 <Route element={<Layout />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    
-                    {/* Kelola Siswa */}
-                    <Route path="/students" element={<Students />} />
-                    <Route path="/students/add" element={<AddStudent />} />
-                    <Route path="/students/edit/:id" element={<EditStudent />} />
-                    
-                    {/* Kelola Guru */}
-                    <Route path="/teachers" element={<Teachers />} />
-                    <Route path="/teachers/add" element={<AddTeacher />} />
-                    <Route path="/teachers/edit/:id" element={<EditTeacher />} />
-                    
-                    {/* Kelola Materi */}
+                    {/* Dashboard menyesuaikan Role */}
+                    <Route 
+                        path={role === 'admin' ? "/admin/dashboard" : "/teacher/dashboard"} 
+                        element={role === 'admin' ? <AdminDashboard /> : <TeacherDashboard />} 
+                    />
+
+                    {/* Menu Materi (Bisa diakses Guru & Admin) */}
                     <Route path="/materials" element={<Materials />} />
                     <Route path="/materials/add" element={<AddMaterial />} />
                     <Route path="/materials/edit/:id" element={<EditMaterial />} />
+
+                    {/* Menu Khusus Admin (Hanya muncul jika Role = Admin) */}
+                    {role === 'admin' && (
+                        <>
+                            <Route path="/students" element={<Students />} />
+                            <Route path="/students/add" element={<AddStudent />} />
+                            <Route path="/students/edit/:id" element={<EditStudent />} />
+                            <Route path="/teachers" element={<Teachers />} />
+                            <Route path="/teachers/add" element={<AddTeacher />} />
+                            <Route path="/teachers/edit/:id" element={<EditTeacher />} />
+                        </>
+                    )}
                 </Route>
             )}
-
         </Route>
 
-        {/* Redirect nyasar */}
+        {/* 404 REDIRECT */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
