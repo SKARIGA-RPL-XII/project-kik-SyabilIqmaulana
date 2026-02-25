@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, BookOpen, GraduationCap, TrendingUp, LogOut } from 'lucide-react';
-
+import axios from 'axios'; // Jangan lupa import axios
+import { Users, BookOpen, GraduationCap, TrendingUp } from 'lucide-react';
 
 const DashboardAdmin = () => {
     const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(true);
     const [stats, setStats] = useState({
         students: 0,
         teachers: 0,
@@ -14,49 +15,75 @@ const DashboardAdmin = () => {
     useEffect(() => {
         // Cek apakah user ada dan rolenya admin
         const userData = JSON.parse(localStorage.getItem("user"));
+        const token = localStorage.getItem("token"); // Ambil token untuk akses API
+        
         if (!userData || userData.role !== 'admin') {
             navigate("/", { replace: true });
-        } else {
-            // Simulasi fetch data
-            setStats({ students: 120, teachers: 15, materials: 45 });
-        }
+            return;
+        } 
+        
+        // Fungsi untuk mengambil data asli dari Laravel
+        const fetchDashboardData = async () => {
+            setIsLoading(true);
+            try {
+                // Mengambil 3 data sekaligus secara paralel agar loading lebih cepat
+                const [studentsRes, teachersRes, materialsRes] = await Promise.all([
+                    axios.get("http://localhost:8000/api/students", { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    axios.get("http://localhost:8000/api/teachers", { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    axios.get("http://localhost:8000/api/materials", { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    })
+                ]);
+
+                // Menghitung jumlah array dari masing-masing data
+                setStats({ 
+                    students: studentsRes.data.data.length, 
+                    teachers: teachersRes.data.data.length, 
+                    materials: materialsRes.data.data.length 
+                });
+            } catch (error) {
+                console.error("Gagal mengambil data dashboard:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchDashboardData(); // Panggil fungsinya
+        
     }, [navigate]);
 
-    const handleLogout = () => {
-        localStorage.clear();
-        navigate("/", { replace: true });
-    };
-
     const StatCard = ({ title, value, icon, color }) => (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition duration-300 transform hover:-translate-y-1">
             <div className={`p-4 rounded-xl ${color} text-white`}>
                 {icon}
             </div>
             <div>
                 <p className="text-gray-500 text-sm font-medium">{title}</p>
-                <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
+                <h3 className="text-2xl font-bold text-gray-800">
+                    {/* Jika masih loading tampilkan titik-titik, jika selesai tampilkan angka asli */}
+                    {isLoading ? "..." : value} 
+                </h3>
             </div>
         </div>
     );
 
     return (
         <div className="p-6">
-            {/* Header dengan tombol Logout */}
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800 text-sm">Admin Panel</h2>
-                <button 
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition font-medium"
-                >
-                    <LogOut size={18} /> Keluar
-                </button>
+            {/* Header */}
+            <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Admin Panel</h2>
+                <p className="text-gray-500 text-sm mt-1">Ringkasan data aplikasi EduSmart AI</p>
             </div>
 
             {/* Banner Selamat Datang */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white mb-8 shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
                     <h1 className="text-3xl font-bold mb-2">Selamat Datang, Admin! 👋</h1>
-                    <p className="opacity-90">Ini adalah pusat kontrol aplikasi EduSmart AI. Pantau perkembangan siswa di sini.</p>
+                    <p className="opacity-90">Ini adalah pusat kontrol aplikasi EduSmart AI. Pantau perkembangan seluruh data di sini.</p>
                 </div>
                 <div className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10">
                     <Users size={200} />
@@ -95,24 +122,25 @@ const DashboardAdmin = () => {
                     <table className="w-full text-left text-sm text-gray-600">
                         <thead className="bg-gray-50 text-gray-700 font-semibold border-b">
                             <tr>
-                                <th className="p-3">User</th>
-                                <th className="p-3">Aktivitas</th>
-                                <th className="p-3">Waktu</th>
-                                <th className="p-3">Status</th>
+                                <th className="p-4 rounded-tl-lg">User</th>
+                                <th className="p-4">Aktivitas</th>
+                                <th className="p-4">Waktu</th>
+                                <th className="p-4 rounded-tr-lg">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
-                            <tr>
-                                <td className="p-3 font-medium">Budi Santoso (Siswa)</td>
-                                <td className="p-3">Login ke sistem</td>
-                                <td className="p-3">2 menit lalu</td>
-                                <td className="p-3"><span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Sukses</span></td>
+                        <tbody className="divide-y divide-gray-100">
+                            {/* Dummy data untuk aktivitas, nanti bisa diganti dengan log asli jika backend sudah siap */}
+                            <tr className="hover:bg-gray-50 transition-colors">
+                                <td className="p-4 font-medium text-gray-800">Budi Santoso (Siswa)</td>
+                                <td className="p-4">Login ke sistem</td>
+                                <td className="p-4">2 menit lalu</td>
+                                <td className="p-4"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">Sukses</span></td>
                             </tr>
-                            <tr>
-                                <td className="p-3 font-medium">Siti Aminah (Guru)</td>
-                                <td className="p-3">Upload Materi React JS</td>
-                                <td className="p-3">1 jam lalu</td>
-                                <td className="p-3"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">Upload</span></td>
+                            <tr className="hover:bg-gray-50 transition-colors">
+                                <td className="p-4 font-medium text-gray-800">Siti Aminah (Guru)</td>
+                                <td className="p-4">Upload Materi React JS</td>
+                                <td className="p-4">1 jam lalu</td>
+                                <td className="p-4"><span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">Upload</span></td>
                             </tr>
                         </tbody>
                     </table>

@@ -7,6 +7,8 @@ use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Log;
 
 class MaterialController extends Controller
 {
@@ -22,36 +24,55 @@ class MaterialController extends Controller
 }
 
     // 2. Upload Materi Baru
-   public function store(Request $request)
+    public function store(Request $request)
     {
         // 1. Validasi dulu biar aman
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
-            'teacher_id' => 'required', // Pastikan ID Guru dikirim
+            'teacher_id' => 'required',
             'description' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf,doc,docx|max:10240', // Maks 10MB
+            'file' => 'required|file|mimes:pdf|max:10240', // Kita batasi PDF saja untuk sekarang
         ]);
 
         try {
             // 2. Proses Upload File
             if ($request->hasFile('file')) {
+                $file = $request->file('file');
                 // Simpan file ke folder 'storage/app/public/materials'
-                $filePath = $request->file('file')->store('materials', 'public');
+                $filePath = $file->store('materials', 'public');
+
+                // --- INI DIA SIHIRNYA: BACA TEKS DARI PDF ---
+                $extractedText = null;
+                try {
+                    $parser = new Parser();
+                    // Baca file langsung dari tempat penyimpanan sementara (tmp) saat diupload
+                    $pdf = $parser->parseFile($file->getPathname());
+                    $extractedText = $pdf->getText();
+
+                    // Bersihkan teks dari spasi atau enter yang terlalu banyak
+                    $extractedText = preg_replace('/\s+/', ' ', trim($extractedText));
+                } catch (\Exception $e) {
+                    // Kalau PDF-nya terkunci/error, biarkan kosong agar upload tidak gagal total
+                    Log::error('Gagal membaca PDF: ' . $e->getMessage());
+                }
+                // ----------------------------------------------
+
             } else {
                 return response()->json(['message' => 'File tidak ditemukan'], 400);
             }
 
-            // 3. Simpan ke Database
+            // 3. Simpan ke Database (Termasuk teks aslinya!)
             $material = \App\Models\Material::create([
                 'title' => $request->title,
                 'subject' => $request->subject,
                 'description' => $request->description,
-                'teacher_id' => $request->teacher_id, // Pastikan kolom ini ada di database
-                'file_path' => $filePath,            // Pastikan kolom ini ada di database
+                'teacher_id' => $request->teacher_id,
+                'file_path' => $filePath,
+                'extracted_text' => $extractedText, // Simpan teks panjang ke kolom baru
             ]);
 
-            return response()->json(['message' => 'Berhasil upload!', 'data' => $material], 201);
+            return response()->json(['message' => 'Berhasil upload dan ekstrak teks!', 'data' => $material], 201);
 
         } catch (\Exception $e) {
             return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);

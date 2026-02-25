@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 
 class TeacherController extends Controller
 {
@@ -96,26 +97,40 @@ class TeacherController extends Controller
     // 4. PUT Update Guru
     public function update(Request $request, $id)
     {
-        // Validasi yang sudah diperbaiki!
+        // 1. Validasi (NIP dihapus jika memang tidak ada inputan NIP di frontend)
         $validator = Validator::make($request->all(), [
-            'nip'      => 'required|unique:teachers,nip,'.$id,
             'name'     => 'required',
             'email'    => 'required|email|unique:teachers,email,'.$id,
+            'password' => 'nullable|min:6' // Password opsional, tapi kalau diisi minimal 6 karakter
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return response()->json([
+                'status' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors() // Format error ini yang ditangkap oleh React kita tadi
+            ], 422);
         }
 
+        // 2. Cari Data Guru
         $teacher = Teacher::find($id);
 
         if($teacher) {
-            $teacher->update([
-                'nip'      => $request->nip,
+            // 3. Siapkan data yang pasti di-update
+            $dataToUpdate = [
                 'name'     => $request->name,
                 'email'    => $request->email,
-            ]);
+            ];
 
+            // 4. Cek apakah password ikut dikirim/diisi
+            if ($request->filled('password')) {
+                $dataToUpdate['password'] = Hash::make($request->password);
+            }
+
+            // 5. Eksekusi Update ke Database
+            $teacher->update($dataToUpdate);
+
+            // 6. Kembalikan Response Sukses
             return response()->json([
                 'status' => true,
                 'message' => 'Data Guru Berhasil Diupdate!',
@@ -123,22 +138,10 @@ class TeacherController extends Controller
             ], 200);
         }
 
-        return response()->json(['message' => 'Data tidak ditemukan'], 404);
-    }
-
-    // 5. DELETE Hapus Guru
-    public function destroy($id)
-    {
-        $teacher = Teacher::find($id);
-
-        if($teacher) {
-            $teacher->delete();
-            return response()->json([
-                'status' => true,
-                'message' => 'Data Guru Berhasil Dihapus!',
-            ], 200);
-        }
-
-        return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        // 7. Jika ID Guru tidak ditemukan
+        return response()->json([
+            'status' => false,
+            'message' => 'Data tidak ditemukan'
+        ], 404);
     }
 }

@@ -1,62 +1,65 @@
 <?php
 
-// app/Http/Controllers/AiChatController.php
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use App\Models\Chat;
+use App\Models\Material; // <--- WAJIB TAMBAH INI SUPAYA LARAVEL BISA BACA TABEL MATERI
 
 class AiChatController extends Controller
 {
     public function chat(Request $request)
     {
-        $request->validate([
-            'message' => 'required|string|max:1000',
-            'type' => 'nullable|in:qa,summary,task_help'
-        ]);
+        $apiKey = env('GEMINI_API_KEY');
 
-        $user = $request->user();
+        // Menangkap pesan dan ID materi dari React
+        $userMessage = $request->input('message');
+        $materialId = $request->input('material_id');
 
-        // Simpan pertanyaan siswa
-        $chat = Chat::create([
-            'user_id' => $user->id,
-            'message_user' => $request->message,
-            'type' => $request->type ?? 'qa',
-        ]);
+        if (empty($userMessage)) {
+            return response()->json(['answer' => 'Pesan tidak boleh kosong ya.']);
+        }
 
-        // Prompt dasar (AMAN & EDUKATIF)
-        $systemPrompt = "Kamu adalah asisten belajar siswa SMK.
-        Jawab dengan bahasa Indonesia yang sederhana, singkat, dan mudah dipahami.
-        Jangan memberikan jawaban yang tidak berkaitan dengan pembelajaran.";
+        // 1. Ambil data materi dari Database berdasarkan ID
+        $material = Material::find($materialId);
 
-        // Panggil API AI
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . config('services.openai.key'),
-            'Content-Type' => 'application/json',
-        ])->post('https://api.openai.com/v1/chat/completions', [
-            'model' => 'gpt-4o-mini',
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $request->message],
-            ],
-            'max_tokens' => 400,
-        ]);
+        // 2. Buat "Bisikan" Konteks untuk AI (System Prompting)
+        $konteksMateri = "Kamu adalah asisten belajar AI yang ramah dan cerdas. ";
 
-        $aiAnswer = $response->json('choices.0.message.content')
-                    ?? 'Maaf, AI belum dapat menjawab saat ini.';
+        if ($material) {
+            $konteksMateri .= "Saat ini siswa sedang bertanya tentang mata pelajaran {$material->subject}, khusus pada materi berjudul '{$material->title}'. Deskripsi singkat materinya adalah: {$material->description}. Bimbing siswa untuk memahami materi tersebut. ";
+        }
 
-        // Update jawaban AI
-        $chat->update([
-            'message_ai' => $aiAnswer
-        ]);
+        $konteksMateri .= "Jawablah pertanyaan siswa berikut ini dengan bahasa gaul yang sopan dan mudah dipahami. Jangan terlalu panjang. Pertanyaan siswa: ";
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'question' => $chat->message_user,
-                'answer' => $chat->message_ai
+        // 3. Gabungkan bisikan dengan pertanyaan asli siswa
+        $finalPrompt = $konteksMateri . '"' . $userMessage . '"';
+
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+
+        $payload = [
+            "contents" => [
+                [
+                    "role" => "user",
+                    "parts" => [["text" => $finalPrompt]]
+                ]
             ]
-        ]);
+        ];
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post($url, $payload);
+
+            if ($response->successful()) {
+                $aiAnswer = $response->json('candidates.0.content.parts.0.text') ?? 'Maaf, AI tidak memberikan jawaban.';
+                return response()->json(['answer' => $aiAnswer]);
+            } else {
+                return response()->json(['answer' => 'Error Google: ' . $response->body()]);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json(['answer' => 'Error Sistem: ' . $e->getMessage()]);
+        }
     }
 }

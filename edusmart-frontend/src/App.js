@@ -18,6 +18,21 @@ import Materials from "./pages/Materials";
 import AddMaterial from "./pages/AddMaterial";
 import EditMaterial from './pages/EditMaterial';
 
+// 1. KOMPONEN BARU: Pengecek Login Secara Live (Memecah Infinite Loop)
+const LoginRedirect = () => {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
+  const role = user?.role;
+
+  // Jika token atau user tidak ada, benar-benar tampilkan form Login
+  if (!token || !user) return <Login />;
+  
+  // Jika masih ada sesi, arahkan ke dashboard sesuai role
+  if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+  if (role === 'teacher') return <Navigate to="/teacher/dashboard" replace />;
+  return <Navigate to="/student/dashboard" replace />;
+};
+
 function App() {
   const user = JSON.parse(localStorage.getItem('user'));
   const role = user?.role; 
@@ -26,18 +41,18 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* 1. PUBLIC ROUTES */}
-        <Route path="/" element={
-            !user ? <Login /> : 
-            role === 'admin' ? <Navigate to="/admin/dashboard" replace /> :
-            role === 'teacher' ? <Navigate to="/teacher/dashboard" replace /> :
-            <Navigate to="/student/dashboard" replace />
-        } />
+        {/* Gunakan Komponen LoginRedirect yang kita buat di atas */}
+        <Route path="/login" element={<LoginRedirect />} />
+        
+        {/* Redirect dari root (/) ke /login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
         <Route path="/register" element={<Register />} />
 
-        {/* 2. PROTECTED ROUTES (Harus Login) */}
+        {/* 2. PROTECTED ROUTES (Harus punya token) */}
         <Route element={<PrivateRoute />}>
             
-            {/* JALUR SISWA (Tanpa Sidebar Layout jika memang desainnya beda) */}
+            {/* JALUR SISWA */}
             {role === 'student' && (
                 <Route path="/student/dashboard" element={<SiswaDashboard />} />
             )}
@@ -56,7 +71,7 @@ function App() {
                     <Route path="/materials/add" element={<AddMaterial />} />
                     <Route path="/materials/edit/:id" element={<EditMaterial />} />
 
-                    {/* Menu Khusus Admin (Hanya muncul jika Role = Admin) */}
+                    {/* Menu Khusus Admin */}
                     {role === 'admin' && (
                         <>
                             <Route path="/students" element={<Students />} />
