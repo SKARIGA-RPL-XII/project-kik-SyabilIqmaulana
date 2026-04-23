@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
 import api from "../../services/api"; // Sesuaikan path-nya
-import { Search, Plus, Edit, Trash2, Download, X, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { 
+  Search, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Download, 
+  X, 
+  FileText, 
+  ClipboardList, 
+  Eye 
+} from "lucide-react"; 
 
 const MateriPelajaran = () => {
   const [materials, setMaterials] = useState([]);
@@ -18,6 +29,8 @@ const MateriPelajaran = () => {
   const [description, setDescription] = useState("");
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  const navigate = useNavigate(); 
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -36,13 +49,12 @@ const MateriPelajaran = () => {
     }
   };
 
-  // --- FUNGSI HAPUS (DELETE) ---
   const handleDelete = async (id) => {
     if (window.confirm("Yakin ingin menghapus materi ini? File PDF juga akan terhapus permanen loh!")) {
       try {
         await api.delete(`/materials/${id}`);
         alert("Materi berhasil dihapus!");
-        fetchMaterials(); // Refresh tabel
+        fetchMaterials();
       } catch (error) {
         console.error("Gagal menghapus:", error);
         alert("Gagal menghapus materi.");
@@ -50,7 +62,6 @@ const MateriPelajaran = () => {
     }
   };
 
-  // --- FUNGSI BUKA MODAL UNTUK UPLOAD BARU ---
   const openUploadModal = () => {
     setIsEditMode(false);
     setTitle("");
@@ -60,18 +71,16 @@ const MateriPelajaran = () => {
     setIsModalOpen(true);
   };
 
-  // --- FUNGSI BUKA MODAL UNTUK EDIT ---
   const openEditModal = (material) => {
     setIsEditMode(true);
     setEditId(material.id);
     setTitle(material.title);
     setSubject(material.subject);
     setDescription(material.description || "");
-    setFile(null); // File tidak wajib diisi ulang saat edit
+    setFile(null);
     setIsModalOpen(true);
   };
 
-  // --- FUNGSI SIMPAN (UPLOAD / UPDATE) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !subject) {
@@ -86,20 +95,17 @@ const MateriPelajaran = () => {
     formData.append("description", description);
     formData.append("teacher_id", user.id);
     if (file) {
-      formData.append("file", file); // Kalau edit, file path-nya disesuaikan di backend
+      formData.append("file", file);
     }
 
     try {
       if (isEditMode) {
-        // Proses Edit
-        // Karena Laravel menggunakan _method PUT untuk FormData
         formData.append("_method", "PUT");
         await api.post(`/materials/${editId}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         alert("Materi berhasil diupdate!");
       } else {
-        // Proses Upload Baru
         if (!file) {
           alert("File PDF wajib diisi untuk materi baru!");
           setIsUploading(false);
@@ -111,7 +117,7 @@ const MateriPelajaran = () => {
         alert("Materi berhasil ditambahkan!");
       }
       setIsModalOpen(false);
-      fetchMaterials(); // Refresh tabel
+      fetchMaterials();
     } catch (error) {
       console.error("Error simpan data:", error);
       alert("Gagal menyimpan materi.");
@@ -120,7 +126,6 @@ const MateriPelajaran = () => {
     }
   };
 
-  // Filter pencarian
   const filteredMaterials = materials.filter((item) =>
     item.title.toLowerCase().includes(search.toLowerCase()) ||
     item.subject.toLowerCase().includes(search.toLowerCase())
@@ -207,6 +212,24 @@ const MateriPelajaran = () => {
                     </td>
                     <td className="p-4 pr-6">
                       <div className="flex items-center justify-end gap-2">
+                        {/* TOMBOL LIHAT PENGUMPULAN TUGAS */}
+                        <button
+                          onClick={() => navigate(`/teacher/materials/${item.id}/submissions`)}
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Lihat Pengumpulan Tugas"
+                        >
+                          <Eye size={18} />
+                        </button>
+
+                        {/* TOMBOL TAMBAH TUGAS */}
+                        <button
+                          onClick={() => navigate(`/teacher/materials/${item.id}/add-task`)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Tambah Tugas untuk Materi Ini"
+                        >
+                          <ClipboardList size={18} />
+                        </button>
+
                         <button
                           onClick={() => openEditModal(item)}
                           className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
@@ -279,7 +302,6 @@ const MateriPelajaran = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

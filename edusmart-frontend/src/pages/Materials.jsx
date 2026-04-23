@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
-import { Plus, Search, FileText, Download, Trash2, Edit } from "lucide-react";
-import Swal from "sweetalert2"; // Tambahan pop-up cantik
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search, FileText, Download, Trash2, Edit, ClipboardList, Eye } from "lucide-react";
+import Swal from "sweetalert2";
 
 const Materials = () => {
   const [materials, setMaterials] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchMaterials();
@@ -25,14 +26,13 @@ const Materials = () => {
   };
 
   const deleteMaterial = async (id) => {
-    // Mengganti window.confirm standar dengan SweetAlert2
     const result = await Swal.fire({
       title: 'Yakin ingin menghapus?',
       text: "File materi yang dihapus tidak dapat dikembalikan!",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444', 
-      cancelButtonColor: '#f97316', // Warna orange sesuai tema materi
+      cancelButtonColor: '#f97316',
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       shape: 'rounded-xl'
@@ -99,9 +99,9 @@ const Materials = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
+                <thead className="bg-gray-50 text-pu-600 uppercase text-xs tracking-wider">
                     <tr>
-                        <th className="p-4 border-b">Judul Materi</th>
+                        <th className="p-4 border-b">Judul Materi</th>    
                         <th className="p-4 border-b">Mata Pelajaran</th>
                         <th className="p-4 border-b">File</th>
                         <th className="p-4 border-b text-right">Aksi</th>
@@ -145,8 +145,24 @@ const Materials = () => {
                                 </a>
                             </td>
                             <td className="p-4">
-                                {/* PERBAIKAN KOLOM AKSI DENGAN FLEXBOX */}
                                 <div className="flex items-center justify-end gap-2">
+                                    {/* --- TOMBOL DETAIL BARU DITAMBAHKAN DI SINI --- */}
+                                    <Link 
+                                        to={`/teacher/materials/${item.id}/detail`} 
+                                        className="flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors duration-200"
+                                        title="Lihat Detail Materi & Tugas"
+                                    >
+                                        <Eye size={16} strokeWidth={2.5} />
+                                    </Link>
+
+                                    <button 
+                                        onClick={() => navigate(`/teacher/materials/${item.id}/add-task`)} 
+                                        className="flex items-center justify-center p-2 text-green-600 bg-green-50 hover:bg-green-600 hover:text-white rounded-lg transition-colors duration-200"
+                                        title="Tambah Tugas"
+                                    >
+                                        <ClipboardList size={16} strokeWidth={2.5} />
+                                    </button>
+                                    
                                     <Link 
                                         to={`/materials/edit/${item.id}`} 
                                         className="flex items-center justify-center p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-lg transition-colors duration-200"
@@ -154,6 +170,7 @@ const Materials = () => {
                                     >
                                         <Edit size={16} strokeWidth={2.5} />
                                     </Link>
+
                                     <button 
                                         onClick={() => deleteMaterial(item.id)} 
                                         className="flex items-center justify-center p-2 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-lg transition-colors duration-200"

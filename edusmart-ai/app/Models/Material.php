@@ -13,11 +13,12 @@ class Material extends Model
 
     // 1. Pastikan nama kolom di sini SAMA PERSIS dengan di database
     protected $fillable = [
-        'teacher_id',      // Konsisten menggunakan teacher_id (FK ke tabel users)
+        'teacher_id',
         'title',
         'description',
         'file_path',
-        'subject',      // Pastikan kolom ini ada di database kamu
+        'subject',
+        'extracted_text'
     ];
 
     // 2. Relasi ke User (Guru)
@@ -33,4 +34,8 @@ class Material extends Model
     {
         return $this->belongsTo(User::class, 'teacher_id');
     }
+
+    public function tasks() {
+    return $this->hasMany(Task::class);
+}
 }

@@ -8,12 +8,18 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\MaterialController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\SubmissionController;
+use App\Http\Controllers\Api\TaskSubmissionController;
+
+// use App\Http\Controllers\Api\ChatController;
 
 // =================================================================
 // 1. PUBLIC ROUTES (Area Bebas - Bisa diakses di Browser langsung)
 // =================================================================
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::put('submissions/{id}/grade', [SubmissionController::class, 'updateGrade']);
 
 // ---> RUTE TESTING KITA TARUH DI SINI, DI LUAR GEMBOK! <---
 Route::get('/tes-gemini', function () {
@@ -58,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rute AI Chat Asli
     Route::post('/chat', [AiChatController::class, 'chat']);
+    Route::get('/chat/{materialId}', [AiChatController::class, 'show']);
 
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->middleware('role:admin');
     Route::get('/guru/dashboard', [DashboardController::class, 'guru'])->middleware('role:guru');
@@ -68,5 +75,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('materials', MaterialController::class);
     Route::post('/materials/{id}', [MaterialController::class, 'update']);
     Route::get('/teacher/dashboard', [TeacherController::class, 'dashboard']);
+
+    //rute untuk task
+    Route::post('/materials/{id}/tasks', [TaskController::class, 'store']);
+    Route::get('tasks/{taskId}/my-submission', [SubmissionController::class, 'mySubmission']);
+
+    // Route untuk siswa mengumpulkan tugas
+    Route::post('/submissions', [SubmissionController::class, 'store']);
+    // Grouping untuk Teacher
+    Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/teacher/materials/{materialId}/submissions', [TaskSubmissionController::class, 'index']);
+    Route::put('/submissions/{id}/grade', [TaskSubmissionController::class, 'updateGrade']);
+    Route::get('materials/{materialId}/submissions', [MaterialController::class, 'getSubmissionsByMaterial']);
+});
 
 });

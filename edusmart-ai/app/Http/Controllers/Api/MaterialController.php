@@ -14,14 +14,14 @@ class MaterialController extends Controller
 {
     // 1. Ambil Semua Materi
     public function index()
-{
-    $materials = Material::with('user')->latest()->get();
-    return response()->json([
-        'success' => true,
-        'message' => 'Daftar Materi Berhasil Diambil',
-        'data'    => $materials
-    ], 200);
-}
+    {
+        $materials = Material::with('user')->latest()->get();
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar Materi Berhasil Diambil',
+            'data'    => $materials
+        ], 200);
+    }
 
     // 2. Upload Materi Baru
     public function store(Request $request)
@@ -45,9 +45,10 @@ class MaterialController extends Controller
                 // --- INI DIA SIHIRNYA: BACA TEKS DARI PDF ---
                 $extractedText = null;
                 try {
-                    $parser = new Parser();
+                    $parser = new \Smalot\PdfParser\Parser();
                     // Baca file langsung dari tempat penyimpanan sementara (tmp) saat diupload
-                    $pdf = $parser->parseFile($file->getPathname());
+                    $absolutePath = storage_path('app/public/' . $filePath);
+                    $pdf = $parser->parseFile($absolutePath);
                     $extractedText = $pdf->getText();
 
                     // Bersihkan teks dari spasi atau enter yang terlalu banyak
@@ -79,80 +80,83 @@ class MaterialController extends Controller
         }
     }
 
-    // 3. Lihat Detail Materi
-   public function show($id)
-{
-    $material = Material::find($id);
-    if (!$material) {
-        return response()->json(['message' => 'Materi tidak ditemukan'], 404);
-    }
-    return response()->json($material);
-}
-       // 3. Update Materi
-       public function update(Request $request, $id)
-{
-    $material = Material::find($id);
-    if (!$material) {
-    return response()->json(['message' => 'Materi tidak ditemukan'], 404);
-    }
-
-    // Validasi (File tidak wajib diisi saat edit)
-    $request->validate([
-        'title' => 'required',
-        'subject' => 'required',
-        'teacher_id' => 'required',
-        // 'file_path' => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx,txt|max:2048',
-    ]);
-
-    // Update data text dulu
-    $material->title = $request->title;
-    $material->subject = $request->subject;
-    $material->teacher_id = $request->teacher_id;
-    $material->description = $request->description;
-
-    // Cek apakah user upload file baru?
-    if ($request->hasFile('file_path')) {
-        // 1. Hapus file lama biar server gak penuh
-        if ($material->file_path) {
-            Storage::delete('public/materials/' . $material->file_path);
-        }
-
-        // 2. Upload file baru
-        $file = $request->file('file_path');
-        $filename = time() . '_' . $file->getClientOriginalName();
-        $file->storeAs('public/materials', $filename);
-
-        // 3. Simpan nama file baru ke database
-        $material->file_path = $filename;
-    }
-
-    $material->save();
-
-    return response()->json(['message' => 'Materi berhasil diupdate!', 'data' => $material]);
-}
-
-    // 4. Hapus Materi
-    public function destroy($id)
+    // 3. Lihat Detail Materi (Sudah Diperbarui)
+    public function show($id)
     {
-        // 1. Cari materi berdasarkan ID
-        $material = Material::find($id);
+        // Gunakan with('tasks') agar Laravel otomatis mengambil semua tugas
+        // yang material_id-nya sama dengan ID materi ini.
+        $material = Material::with('tasks')->find($id);
 
         if (!$material) {
-            return response()->json(['message' => 'Materi tidak ditemukan'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Materi tidak ditemukan'
+            ], 404);
         }
 
-        // 2. Hapus File Fisik di Storage (PENTING!)
-        // Cek dulu apakah filenya ada, kalau ada hapus.
-        if ($material->file_path && Storage::exists('public/materials/' . $material->file_path)) {
-            Storage::delete('public/materials/' . $material->file_path);
-        }
-
-        // 3. Hapus Data di Database
-        $material->delete();
-
+        // Bungkus dengan 'data' agar sesuai dengan standar response API kita
         return response()->json([
-            'message' => 'Materi berhasil dihapus!'
+            'success' => true,
+            'message' => 'Detail materi berhasil diambil',
+            'data' => $material
         ], 200);
     }
 
+    public function getSubmissionsByMaterial($materialId)
+    {
+        try {
+            // Logika: Cari submission yang punya task, dimana task tersebut punya material_id yang dicari
+            $submissions = \App\Models\Submission::whereHas('task', function ($query) use ($materialId) {
+                $query->where('material_id', $materialId);
+            })
+            ->with(['student', 'task']) // Mengambil data siswa (dari User model) dan data tugas
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $submissions
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // 4. Hapus Materi (Baru Ditambahkan)
+    public function destroy($id)
+    {
+        try {
+            // Cari materi berdasarkan ID
+            $material = Material::findOrFail($id);
+
+            // 1. HAPUS RELASI ANAK: Hapus semua tugas yang berelasi dengan materi ini
+            // Ini yang mencegah error "Constraint Violation"
+            if ($material->tasks()) {
+                $material->tasks()->delete();
+            }
+
+            // 2. HAPUS FILE FISIK: Hapus file PDF dari folder storage agar tidak memenuhi hardisk
+            if ($material->file_path && Storage::disk('public')->exists($material->file_path)) {
+                Storage::disk('public')->delete($material->file_path);
+            }
+
+            // 3. HAPUS INDUK: Baru hapus data materinya dari database
+            $material->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Materi dan tugas terkait berhasil dihapus.'
+            ], 200);
+
+        } catch (\Exception $e) {
+            // Tangkap error jika masih gagal
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus materi: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

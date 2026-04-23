@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import api from "../../services/api"; // Gunakan instance API yang sudah kita buat
+import api from "../../services/api"; 
 import { LogOut, BookOpen, Send, X, Bot, MessageCircle, FileText } from "lucide-react";
 import Logo from "../../components/Logo"; 
 import ReactMarkdown from 'react-markdown';
+import { Link } from "react-router-dom";
 
 const SiswaDashboard = () => {
   const [materials, setMaterials] = useState([]);
@@ -45,12 +46,35 @@ const SiswaDashboard = () => {
     window.location.href = "/";
   };
 
-  const openChat = (material) => {
+  const openChat = async (material) => {
     setSelectedMaterial(material);
     setIsChatOpen(true);
+
     setChatHistory([
-        { sender: "ai", text: `Halo ${user.name}! Saya asisten belajarmu. Ada yang bingung dari materi "${material.title}" ini?` }
+        { sender: "ai", text: `Halo! Sebentar ya, saya sedang mengingat obrolan kita sebelumnya tentang "${material.title}"...` }
     ]);
+
+    try {
+        const response = await api.get(`/chat/${material.id}`);
+        const pastMessages = response.data.data;
+
+        if (pastMessages && pastMessages.length > 0) {
+            const formattedHistory = pastMessages.map((msg) => ({
+                sender: msg.role === 'user' ? 'user' : 'ai',
+                text: msg.message
+            }));
+            setChatHistory(formattedHistory);
+        } else {
+            setChatHistory([
+                { sender: "ai", text: `Halo! Saya asisten belajarmu. Ada yang bingung dari materi "${material.title}" ini?` }
+            ]);
+        }
+    } catch (error) {
+        console.error("Gagal mengambil history chat:", error);
+        setChatHistory([
+            { sender: "ai", text: `Halo! Saya asisten belajarmu. Ada yang bingung dari materi "${material.title}" ini?` }
+        ]);
+    }
   };
 
   const handleSendMessage = async (e) => {
@@ -58,10 +82,12 @@ const SiswaDashboard = () => {
     if (!chatMessage.trim()) return;
 
     const currentMessage = chatMessage;
-    const currentChat = [...chatHistory, { sender: "user", text: currentMessage }];
-    
-    setChatHistory(currentChat);
     setChatMessage(""); 
+
+    // 1. Tampilkan pesan user ke layar
+    setChatHistory((prev) => [...prev, { sender: "user", text: currentMessage }]);
+    
+    // 2. Nyalakan efek mengetik
     setIsAiTyping(true);
 
     try {
@@ -70,25 +96,19 @@ const SiswaDashboard = () => {
             message: currentMessage
         });
 
-        // KITA UBAH BAGIAN INI: Langsung cari variabel 'answer' dari Laravel
-        if (response.data.answer) {
-            setChatHistory([...currentChat, { 
-                sender: "ai", 
-                text: response.data.answer // <--- SESUAI DENGAN LABEL DARI LARAVEL
-            }]);
-        }
-    } catch (error) {
-        console.error("Error Chat:", error);
-        setChatHistory([...currentChat, { 
-            sender: "ai", 
-            text: "Waduh, koneksi ke otak AI saya terputus. Coba tanya lagi ya!" 
-        }]);
-    } finally {
+        // 3. Matikan efek mengetik
         setIsAiTyping(false);
+
+        // 4. Tampilkan jawaban AI
+        setChatHistory((prev) => [...prev, { sender: "ai", text: response.data.data.message }]);
+        
+    } catch (error) {
+        console.error("Gagal kirim pesan:", error);
+        setIsAiTyping(false);
+        setChatHistory((prev) => [...prev, { sender: "ai", text: "Waduh, koneksi ke otak AI saya terputus. Coba tanya lagi ya!" }]);
     }
   };
 
-  // Fungsi untuk mengambil inisial nama (misal "Budi" jadi "B")
   const getInitial = (name) => {
       return name ? name.charAt(0).toUpperCase() : "S";
   };
@@ -183,23 +203,23 @@ const SiswaDashboard = () => {
                         </div>
 
                         {/* Area Tombol Bawah */}
-                        <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex gap-3">
-                            <a 
-                                href={`http://localhost:8000/storage/${item.file_path}`} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 hover:border-gray-300 transition-all"
+                        <div className="p-6 pt-0 mt-auto flex flex-col gap-2">
+                            {/* Tombol Utama: Ke Detail & Tugas */}
+                            <Link 
+                                to={`/student/materials/${item.id}`} 
+                                className="w-full py-2.5 bg-blue-500 text-white text-center rounded-xl text-sm font-bold hover:bg-blue-600 transition shadow-sm"
                             >
-                                Baca PDF
-                            </a>
-                            
-                            <button 
-                                onClick={() => openChat(item)}
-                                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all"
+                                Buka Materi & Tugas
+                            </Link>
+
+                            {/* Tombol Tanya AI */}
+                            {/* <button 
+                                onClick={() => openChat(item)} 
+                                className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-100 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600 hover:text-white transition"
                             >
-                                <MessageCircle size={16} />
+                                <MessageCircle size={18} />
                                 Tanya AI
-                            </button>
+                            </button> */}
                         </div>
                     </div>
                 ))}
@@ -247,14 +267,14 @@ const SiswaDashboard = () => {
                                     : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
                             }`}>
                                {msg.sender === 'ai' ? (
-    <div className="prose prose-sm max-w-none text-gray-700">
-        <ReactMarkdown>
-            {msg.text}
-        </ReactMarkdown>
-    </div>
-) : (
-    msg.text
-)}
+                                    <div className="prose prose-sm max-w-none text-gray-700">
+                                        <ReactMarkdown>
+                                            {msg.text}
+                                        </ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    msg.text
+                                )}
                             </div>
                         </div>
                     ))}
@@ -297,4 +317,4 @@ const SiswaDashboard = () => {
   );
 };
 
-export default SiswaDashboard;
+export default SiswaDashboard

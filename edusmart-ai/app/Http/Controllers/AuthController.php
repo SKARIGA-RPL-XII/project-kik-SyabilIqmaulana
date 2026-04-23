@@ -6,28 +6,39 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash; // <--- JANGAN LUPA IMPORT INI
 use App\Models\User;
+use App\Models\Student;
 
 class AuthController extends Controller
 {
     // === TAMBAHKAN FUNGSI REGISTER INI ===
-    public function register(Request $request)
+public function register(Request $request)
     {
         // 1. Validasi Input
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users', // Email tidak boleh kembar
-            'password' => 'required|string|min:8|confirmed', // Harus ada field password_confirmation di frontend
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed', // Perlu field password_confirmation di frontend
         ]);
 
-        // 2. Buat User Baru (Default role: student)
+        // 2. Buat User Baru di tabel 'users' (Untuk keperluan Login)
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'student', // Kita set default jadi siswa
+            'role' => 'student',
         ]);
 
-        // 3. Kembalikan Respon Sukses
+        // 3. Buat data di tabel 'students' (Untuk keperluan Profil & Tugas)
+        // Ini agar pas login, profil siswanya sudah otomatis ada
+        Student::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password), // Simpan hash-nya, jangan 0
+            // Jika tabel students punya kolom user_id, tambahkan:
+            // 'user_id' => $user->id,
+        ]);
+
+        // 4. Kembalikan Respon Sukses
         return response()->json([
             'message' => 'Registrasi berhasil! Silakan login.',
             'user' => $user
